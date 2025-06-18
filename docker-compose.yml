@@ -1,0 +1,44 @@
+version: "3.9"
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: kawra
+      POSTGRES_PASSWORD: kawra
+      POSTGRES_DB: kawra
+    volumes: [ "pg:/var/lib/postgresql/data" ]
+    healthcheck:
+      test: ["CMD-SHELL","pg_isready -U kawra"]
+      interval: 5s
+
+  ipfs:
+    image: ipfs/kubo:latest
+    restart: unless-stopped
+    ports: ["4001:4001","5001:5001","8080:8080"]
+    volumes: ["ipfs:/data/ipfs"]
+
+  kawra:
+    image: ghcr.io/yourrepo/kawra-node:latest
+    volumes: ["kawra:/root/.kawra"]
+    command: >
+      kawrad -printtoconsole -server=1 -txindex=1
+        -rpcuser=${KAWRA_RPC_USER:-coinuser}
+        -rpcpassword=${KAWRA_RPC_PASS:-glassrock1212}
+    ports: ["9332:9332"]
+
+  api:
+    build: .
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+      ipfs:
+        condition: service_started
+      kawra:
+        condition: service_started
+    ports: ["8000:8000"]
+
+volumes:
+  pg: {}
+  ipfs: {}
+  kawra: {}
